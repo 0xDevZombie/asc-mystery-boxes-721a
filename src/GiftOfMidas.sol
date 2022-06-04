@@ -37,6 +37,7 @@ contract GiftOfMidas is ERC721A, ERC721ABurnable, Ownable {
     error NotOnWhitelist();
 
     constructor(string memory name, string memory symbol, address _teamAddress) ERC721A(name, symbol) {
+        teamAddress = payable(_teamAddress);
     }
 
     modifier isBelowUserAllowance(uint256 amount, mapping(address => uint256) storage userMints, uint256 maxMints) {
