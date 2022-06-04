@@ -26,14 +26,10 @@ contract GiftOfMidasTest is Test {
 
 
     function testWithdraw() public {
-        emit log_uint(userOne.balance);
         assertTrue(userOne.balance == 0 ether);
-
         hoax(userTwo);
         giftOfMidas.publicMint{value : 0.5 ether}(10);
-
         giftOfMidas.withdrawFunds();
-        emit log_uint(userOne.balance);
         assertTrue(userOne.balance == 0.5 ether);
     }
 
