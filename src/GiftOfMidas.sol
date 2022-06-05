@@ -16,7 +16,7 @@ contract GiftOfMidas is ERC721A, ERC721ABurnable, Ownable {
     mapping(address => uint256) internal preSaleUserMints;
     mapping(address => uint256) internal publicSaleUserMints;
 
-    uint256 public preSaleMintPrice = 0.04 ether;
+    uint256 public preSaleMintPrice = 0.03 ether;
     uint256 public publicSaleMintPrice = 0.05 ether;
 
     address payable internal teamAddress;

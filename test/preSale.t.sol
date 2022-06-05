@@ -31,7 +31,7 @@ contract GiftOfMidasTest is Test {
 
     function testCanMintMaxAllowance() public {
         hoax(userOne);
-        giftOfMidas.preSaleMint{value : 0.4 ether}(1, userOneMerkleProof);
+        giftOfMidas.preSaleMint{value : 0.3 ether}(1, userOneMerkleProof);
         assertTrue(giftOfMidas.ownerOf(0) == userOne);
         cc.expectRevert(abi.encodeWithSelector(IERC721A.OwnerQueryForNonexistentToken.selector));
         giftOfMidas.ownerOf(1);
