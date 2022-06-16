@@ -2,5 +2,10 @@
 src = 'src'
 out = 'out'
 libs = ['lib']
-remappings = ["@ERC721A/=lib/ERC721A/", "@openzeppelin/=lib/openzeppelin-contracts/"]
+remappings = [
+    "@ERC721A/=lib/ERC721A/",
+    "@openzeppelin/=lib/openzeppelin-contracts/",
+    "@chainlink/=lib/chainlink/contracts/src/v0.8",
+    "@solmate=lib/solmate/src/"
+]
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config
