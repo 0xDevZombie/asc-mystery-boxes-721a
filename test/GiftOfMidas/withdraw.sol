@@ -2,8 +2,8 @@
 pragma solidity ^0.8.13;
 
 import "forge-std/Test.sol";
-import "../src/GiftOfMidas.sol";
-import "./utils/CheatCodes.sol";
+import "src/GiftOfMidas.sol";
+import "./../utils/CheatCodes.sol";
 import "@ERC721A/contracts/IERC721A.sol";
 
 contract GiftOfMidasTest is Test {

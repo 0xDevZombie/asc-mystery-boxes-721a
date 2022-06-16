@@ -2,8 +2,8 @@
 pragma solidity ^0.8.13;
 
 import "forge-std/Test.sol";
-import "../src/GiftOfMidas.sol";
-import "./utils/CheatCodes.sol";
+import "src/GiftOfMidas.sol";
+import "../utils/CheatCodes.sol";
 import "@ERC721A/contracts/IERC721A.sol";
 
 contract GiftOfMidasTest is Test {
@@ -40,8 +40,9 @@ contract GiftOfMidasTest is Test {
     function testCannotMintMoreThenMaxAllowance() public {
         hoax(userOne);
         cc.expectRevert(abi.encodeWithSelector(GiftOfMidas.AmountExceedsAllowance.selector));
-        giftOfMidas.preSaleMint{value: 0.08 ether}(2, userOneMerkleProof);
+        giftOfMidas.preSaleMint{value: 0.06 ether}(2, userOneMerkleProof);
     }
+
     function testCannotMintCheaperThenCost() public {
         hoax(userOne);
         cc.expectRevert(abi.encodeWithSelector(GiftOfMidas.MintPayableTooLow.selector));
