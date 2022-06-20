@@ -1,35 +1,31 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.13;
 
-import "@ERC721A/contracts/interfaces/IERC721ABurnable.sol";
+
+import "@chainlink/VRFConsumerBaseV2.sol";
 import "@chainlink/interfaces/LinkTokenInterface.sol";
 import "@chainlink/interfaces/VRFCoordinatorV2Interface.sol";
-import "@chainlink/VRFConsumerBaseV2.sol";
+import "@ERC721A/contracts/interfaces/IERC721ABurnable.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 
+/**
+ *  _______ __               _______                            __               __
+ * |_     _|  |--.-----.    |   _   |.-----.----.-----.-----.--|  |.---.-.-----.|  |_.-----.
+ *   |   | |     |  -__|    |       ||__ --|  __|  -__|     |  _  ||  _  |     ||   _|__ --|
+ *   |___| |__|__|_____|    |___|___||_____|____|_____|__|__|_____||___._|__|__||____|_____|
+**/
+
 contract ClaimGiftOfMidas is VRFConsumerBaseV2, Ownable {
+
     IERC721ABurnable giftOfMidasInterface;
     uint256 totalGOMTokens;
 
-    uint256[] public legendaryPrizes;
-    uint256[] commonPrizes;
-    mapping(uint256 => legendaryPrize) public idToLegendaryPrize;
-    mapping(uint256 => commonPrize) public idToCommonPrize;
     uint256 commonPrizeCounter;
-    uint256 legendaryPrizeCounter = 1; // start at 1 to keep zero as empty value in mapping GOMTokenIdToLegendaryPrizeId
-    mapping(uint256 => uint256) public GOMTokenIdToLegendaryPrizeId;
-    // address which holds nfts that would be given out
-    address holderAddress;
-    bool claimOpen;
-    uint nonce;
-
-    struct legendaryPrize {
-        IERC721 IAddress;
-        uint tokenId;
-    }
+    uint256[] commonPrizes;
+    mapping(uint256 => commonPrize) public idToCommonPrize;
 
     struct commonPrize {
         IERC1155 IAddress;
@@ -37,44 +33,43 @@ contract ClaimGiftOfMidas is VRFConsumerBaseV2, Ownable {
         uint amountRemaining;
     }
 
-    error RandomNumbersDontMatchPrizePoolLength();
-    error NotAuthorisedToAddPrizes();
-    error NotOpenYet();
+    uint256 legendaryPrizeCounter = 1; // start at 1 to keep zero as empty value in mapping GOMTokenIdToLegendaryPrizeId
+    uint256[] public legendaryPrizes;
+    mapping(uint256 => legendaryPrize) public idToLegendaryPrize;
+    mapping(uint256 => uint256) public GOMTokenIdToLegendaryPrizeId;
 
-    event AnnounceWinner(uint256 tokenId, uint256 prizeId);
-    event PrizeClaimed(address indexed user, address indexed nftContract, uint256 tokenId);
-
-    function generateWinners() external onlyOwner {
-        if (legendaryPrizes.length != s_randomWords.length) revert RandomNumbersDontMatchPrizePoolLength();
-
-        for (uint i = 0; i < s_randomWords.length; i++) {
-            uint256 randomTokenId = s_randomWords[i] % totalGOMTokens;
-            // Encase unlikely event a tokenId is selected twice
-            if (GOMTokenIdToLegendaryPrizeId[randomTokenId] == 0) {
-                GOMTokenIdToLegendaryPrizeId[randomTokenId] = legendaryPrizes[i];
-                emit AnnounceWinner(randomTokenId, legendaryPrizes[i]);
-                //TODO handle remove of prize
-            }
-        }
+    struct legendaryPrize {
+        IERC721 IAddress;
+        uint tokenId;
     }
 
+    address holderAddress; // address which holds nfts that would be given out
+    bool claimOpen;
+    uint nonce;
 
     VRFCoordinatorV2Interface immutable COORDINATOR;
     LinkTokenInterface immutable LINKTOKEN;
     uint64 immutable s_subscriptionId;
     bytes32 immutable s_keyHash;
-    uint32 immutable s_callbackGasLimit = 100000;
     uint16 immutable s_requestConfirmations = 3;
     uint256[] public s_randomWords;
     uint256 public s_requestId;
     address s_owner;
 
+    error RandomNumbersDontMatchPrizePoolLength();
+    error NotAuthorisedToAddPrizes();
+    error NotOpenYet();
 
+    event WinnerSet(uint256 indexed tokenId, uint256 prizeId);
+    event PrizeClaimed(address indexed user, address indexed nftContract, uint256 tokenId);
     event ReturnedRandomness(uint256[] randomWords);
+    event ReRollPrize(uint256 prizeIndex);
 
     /**
      * @notice Constructor inherits VRFConsumerBaseV2
      *
+     * @param giftOfMidas - contract of NFTs to be burnt to claim
+     * @param _holderAddress - address which holds the NFT prizes to be given out
      * @param subscriptionId - the subscription ID that this contract uses for funding requests
      * @param vrfCoordinator - coordinator, check https://docs.chain.link/docs/vrf-contracts/#configurations
      * @param keyHash - the gas lane to use, which specifies the maximum gas price to bump to
@@ -97,6 +92,39 @@ contract ClaimGiftOfMidas is VRFConsumerBaseV2, Ownable {
         s_subscriptionId = subscriptionId;
     }
 
+    /**
+      * @notice Set a winner for each random number generated from VRF for the legendary prize pool
+     */
+    function generateWinners() external onlyOwner {
+        if (legendaryPrizes.length != s_randomWords.length) revert RandomNumbersDontMatchPrizePoolLength();
+        for (uint i = 0; i < s_randomWords.length; i++) {
+            setWinner(i, i);
+        }
+    }
+
+    /**
+     * @notice function for setting random token id from chain links VRF
+     * We leave this public encase we have to re-roll a number in the very unlikely chance we get a duplicated winner
+     * @param sWordsIndex - index of s_randomWords from VRF
+     * @param prizeIndex - index of prize list
+     */
+    function setWinner(uint256 sWordsIndex, uint256 prizeIndex) public onlyOwner {
+        uint256 randomTokenId = s_randomWords[sWordsIndex] % totalGOMTokens;
+        s_randomWords[sWordsIndex] = randomTokenId;
+        // Encase unlikely event a tokenId is selected twice
+        if (GOMTokenIdToLegendaryPrizeId[randomTokenId] == 0) {
+            GOMTokenIdToLegendaryPrizeId[randomTokenId] = legendaryPrizes[prizeIndex];
+            emit WinnerSet(randomTokenId, legendaryPrizes[prizeIndex]);
+        } else {
+            emit ReRollPrize(prizeIndex);
+        }
+    }
+
+    /**
+     * @notice claim prize for given tokenId
+     *
+     * @param tokenId - Of GiftOfMidas
+     */
     function claimPrize(uint256 tokenId) external {
         if (!claimOpen) revert NotOpenYet();
         giftOfMidasInterface.burn(tokenId);
@@ -108,14 +136,21 @@ contract ClaimGiftOfMidas is VRFConsumerBaseV2, Ownable {
         }
     }
 
+    /**
+     * @notice Claim legendary prize which has been set to tokenId
+     *
+     * @param tokenId - Of GiftOfMidas to be burned to claim prize
+     */
     function claimLegendaryPrize(uint256 tokenId) internal {
         legendaryPrize memory prize = idToLegendaryPrize[GOMTokenIdToLegendaryPrizeId[tokenId]];
         prize.IAddress.safeTransferFrom(holderAddress, msg.sender, prize.tokenId, "");
-
         emit PrizeClaimed(msg.sender, address(prize.IAddress), prize.tokenId);
         delete GOMTokenIdToLegendaryPrizeId[tokenId];
     }
 
+    /**
+     * @notice Claim random common prize from common prize pool
+     */
     function claimCommonPrize() internal {
         uint prizeIndexToClaim = generateRandomNumber(commonPrizes.length);
         uint commonPrizeId = commonPrizes[prizeIndexToClaim];
@@ -128,6 +163,12 @@ contract ClaimGiftOfMidas is VRFConsumerBaseV2, Ownable {
         emit PrizeClaimed(msg.sender, address(prize.IAddress), prize.tokenId);
     }
 
+    /**
+      * @notice Add ERC721 legendary prize to the pool
+      *
+      * @param _address - address of nft
+      * @param _tokenId - token id of prize
+     */
     function addLegendaryPrize(address _address, uint _tokenId) external {
         if (msg.sender != holderAddress) revert NotAuthorisedToAddPrizes();
         legendaryPrize memory _prize = legendaryPrize(IERC721(_address), _tokenId);
@@ -136,6 +177,13 @@ contract ClaimGiftOfMidas is VRFConsumerBaseV2, Ownable {
         legendaryPrizes.push(id);
     }
 
+    /**
+      * @notice Add ERC1155 to common prize to the pool
+      *
+      * @param _address - address of nft
+      * @param _tokenId - token id of prize
+      * @param _quantity - quantity of prizes
+     */
     function addCommonPrize(address _address, uint _tokenId, uint _quantity) external {
         if (msg.sender != holderAddress) revert NotAuthorisedToAddPrizes();
         commonPrize memory _prize = commonPrize(IERC1155(_address), _tokenId, _quantity);
@@ -144,14 +192,23 @@ contract ClaimGiftOfMidas is VRFConsumerBaseV2, Ownable {
         commonPrizes.push(id);
     }
 
+    /**
+      * @notice Remove a prize from a prize pool
+      * swap and pop to remove element from array so it only contains active prizes without gaps in array
+      * @param _index - index of prize in array
+      * @param prizes - array of prizes to remove from
+     */
     function _removePrize(uint256 _index, uint256[] storage prizes) internal {
-        // swap and pop to remove element from array so it only contains active prizes without gaps in array
+
         uint256 lastIndex = prizes.length - 1;
         prizes[_index] = prizes[lastIndex];
         prizes.pop();
     }
 
 
+    /**
+      * @notice Open claiming functionality
+     */
     function toggleClaimOpen() onlyOwner external {
         claimOpen = !claimOpen;
     }
@@ -170,14 +227,14 @@ contract ClaimGiftOfMidas is VRFConsumerBaseV2, Ownable {
      * @notice Requests randomness
      * Assumes the subscription is funded sufficiently; "Words" refers to unit of data in Computer Science
      */
-    function requestRandomWords() external onlyOwner {
+    function requestRandomWords(uint32 s_amount, uint32 s_callbackGasLimit) external onlyOwner {
         // Will revert if subscription is not set and funded.
         s_requestId = COORDINATOR.requestRandomWords(
             s_keyHash,
             s_subscriptionId,
             s_requestConfirmations,
             s_callbackGasLimit,
-            uint32(legendaryPrizes.length)
+            s_amount
         );
     }
 
