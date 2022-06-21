@@ -125,7 +125,7 @@ contract ClaimGiftOfMidas is VRFConsumerBaseV2, Ownable {
      *
      * @param tokenId - Of GiftOfMidas
      */
-    function claimPrize(uint256 tokenId) external {
+    function claimPrize(uint256 tokenId) public {
         if (!claimOpen) revert NotOpenYet();
         giftOfMidasInterface.burn(tokenId);
         if (GOMTokenIdToLegendaryPrizeId[tokenId] != 0) {
@@ -134,6 +134,19 @@ contract ClaimGiftOfMidas is VRFConsumerBaseV2, Ownable {
         else {
             claimCommonPrize();
         }
+    }
+
+    /**
+     * @notice bulk claim prizes
+     *
+     * @param tokenIds - Of GiftOfMidas to claim
+     */
+    function bulkClaimPrizes(uint256[] memory tokenIds) external {
+        if (!claimOpen) revert NotOpenYet();
+        for (uint i = 0; i < tokenIds.length; i++) {
+            claimPrize(tokenIds[i]);
+        }
+
     }
 
     /**
