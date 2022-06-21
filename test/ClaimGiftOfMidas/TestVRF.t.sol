@@ -11,7 +11,7 @@ import "forge-std/Test.sol";
 import "@ERC721A/contracts/interfaces/IERC721A.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract ClaimGiftOfMidasTest is Test {
+contract TestVRF is Test {
     MockERC721 public mockERC721;
     MockERC1155 public mockERC1155;
     MockERC1155 public mockERC1155N2;
